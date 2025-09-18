@@ -11,7 +11,7 @@ public class PageController {
         return "index";
     }
 
-    @GetMapping("/customer-page")
+    @GetMapping("/customer")
     public String customer() {
         return "customer";
     }

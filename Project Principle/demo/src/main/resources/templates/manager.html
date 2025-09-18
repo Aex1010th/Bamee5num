@@ -5,98 +5,43 @@
     <title>Manager - Bamee 5 Num</title>
     <link rel="stylesheet" href="/css/style.css">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-50">
-    <header class="bg-white shadow py-4 px-6 flex justify-between items-center mb-6">
-        <h1 class="text-xl font-bold text-orange-600">Bamee 5 Num</h1>
-        <div id="navButtons" class="space-x-4">
-            <a href="/" class="text-gray-700 hover:text-orange-600">เข้าสู่ระบบ</a>
-        </div>
-        <div id="userNav" class="hidden flex items-center space-x-4">
-            <span id="welcomeText" class="font-semibold text-gray-700"></span>
-            <button id="logoutBtn" class="text-red-500 hover:text-red-700">Logout</button>
-        </div>
-    </header>
 
-    <div class="max-w-7xl mx-auto p-8">
-        <h2 class="text-3xl font-bold text-gray-800 mb-6">📊 แดชบอร์ดผู้จัดการ</h2>
-        
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div class="bg-blue-500 text-white p-6 rounded-lg">
-                <p>ออเดอร์วันนี้</p>
-                <p id="todayOrders" class="text-2xl font-bold">0</p>
-            </div>
-            <div class="bg-green-500 text-white p-6 rounded-lg">
-                <p>รายได้วันนี้</p>
-                <p id="todayRevenue" class="text-2xl font-bold">฿0</p>
-            </div>
-        </div>
-        
-        <div class="flex border-b">
-            <button class="manager-tab px-6 py-4 font-medium border-b-2 border-orange-500 text-orange-600" data-tab="menu">จัดการเมนู</button>
-            <button class="manager-tab px-6 py-4 font-medium text-gray-500 hover:text-gray-700" data-tab="employees">จัดการพนักงาน</button>
-            <button class="manager-tab px-6 py-4 font-medium text-gray-500 hover:text-gray-700" data-tab="reports">รายงาน</button>
-        </div>
+<header class="bg-white shadow py-4 px-6 flex justify-between items-center mb-6">
+    <h1 class="text-xl font-bold text-orange-600">Bamee 5 Num</h1>
+    <div id="navButtons" class="space-x-4">
+        <a href="/" class="text-gray-700 hover:text-orange-600">เข้าสู่ระบบ</a>
+    </div>
+    <div id="userNav" class="hidden flex items-center space-x-4">
+        <span id="welcomeText" class="font-semibold text-gray-700"></span>
+        <button id="logoutBtn" class="text-red-500 hover:text-red-700">Logout</button>
+    </div>
+</header>
 
-        <div class="p-6">
-            <div id="menuManagement" class="manager-content">
-                <div class="flex justify-between items-center mb-6">
-                    <h4 class="text-xl font-semibold">จัดการเมนูอาหาร</h4>
-                    <button id="addMenuBtn" class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600">
-                        <i class="fas fa-plus mr-2"></i>เพิ่มเมนู
-                    </button>
-                </div>
-                <div id="menuManagementList" class="space-y-4"></div>
-            </div>
-
-            <div id="employeeManagement" class="manager-content hidden">
-                <div class="flex justify-between items-center mb-6">
-                    <h4 class="text-xl font-semibold">จัดการพนักงาน</h4>
-                    <button id="addEmployeeBtn" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
-                        <i class="fas fa-user-plus mr-2"></i>เพิ่มพนักงาน
-                    </button>
-                </div>
-                <div id="employeeList" class="space-y-4"></div>
-            </div>
+<div class="max-w-7xl mx-auto p-8">
+    <h2 class="text-3xl font-bold text-gray-800 mb-6">📊 แดชบอร์ดผู้จัดการ</h2>
+    
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-blue-500 text-white p-6 rounded-lg">
+            <p>ออเดอร์วันนี้</p>
+            <p class="text-2xl font-bold">120</p>
+        </div>
+        <div class="bg-green-500 text-white p-6 rounded-lg">
+            <p>รายได้วันนี้</p>
+            <p class="text-2xl font-bold">฿8,500</p>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6 mt-6">
+        <h3 class="font-bold mb-4">จัดการเมนู</h3>
+        <div id="menuManagementList" class="space-y-2">
+            <!-- เมนูจะถูกสร้างด้วย JS ที่นี่ -->
         </div>
     </div>
 
-    <div id="addMenuModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
-        <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4">
-            <h3 class="text-2xl font-bold mb-6">เพิ่มเมนูใหม่</h3>
-            <form id="addMenuForm" class="space-y-4">
-                <input type="text" id="menuName" placeholder="ชื่อเมนู" class="w-full p-3 border rounded-lg" required>
-                <input type="number" id="menuPrice" placeholder="ราคา" class="w-full p-3 border rounded-lg" required>
-                <select id="menuCategory" class="w-full p-3 border rounded-lg" required>
-                    <option value="">เลือกหมวดหมู่</option>
-                    <option value="noodles">บะหมี่</option>
-                    <option value="drinks">เครื่องดื่ม</option>
-                    <option value="desserts">ของหวาน</option>
-                </select>
-                <textarea id="menuDescription" placeholder="รายละเอียดเมนู" class="w-full p-3 border rounded-lg h-24"></textarea>
-                <div class="flex space-x-4">
-                    <button type="button" id="cancelAddMenu" class="flex-1 bg-gray-300 text-gray-700 py-3 rounded-lg">ยกเลิก</button>
-                    <button type="submit" class="flex-1 bg-orange-500 text-white py-3 rounded-lg">เพิ่มเมนู</button>
-                </div>
-            </form>
-        </div>
-    </div>
+</div>
 
-    <div id="employeeModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
-        <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4">
-            <h3 id="employeeModalTitle" class="text-2xl font-bold mb-6">เพิ่มพนักงาน</h3>
-            <form id="employeeForm" class="space-y-4">
-                <input type="text" id="employeeName" placeholder="ชื่อพนักงาน" class="w-full p-3 border rounded-lg" required>
-                <input type="text" id="employeePosition" placeholder="ตำแหน่ง" class="w-full p-3 border rounded-lg">
-                <div class="flex space-x-4">
-                    <button type="button" id="cancelEmployee" class="flex-1 bg-gray-300 text-gray-700 py-3 rounded-lg">ยกเลิก</button>
-                    <button type="submit" class="flex-1 bg-blue-500 text-white py-3 rounded-lg">บันทึก</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script type="module" src="/js/manager.js"></script>
+<script type="module" src="/js/manager.js"></script>
 </body>
 </html>
