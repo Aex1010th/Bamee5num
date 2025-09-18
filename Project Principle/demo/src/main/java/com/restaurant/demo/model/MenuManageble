@@ -1,6 +1,0 @@
-public interface MenuManageable {
-    MenuItem addItem(MenuItemCreateReq req);
-    MenuItem updateItem(long id, MenuItemUpdateReq req);
-    void removeItem(long id);
-    void setItemActive(long id, boolean active);
-}
