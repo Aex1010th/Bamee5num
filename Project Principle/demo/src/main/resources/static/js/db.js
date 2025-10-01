@@ -14,9 +14,6 @@ export let menuItems = [
     { id: 3, name: "ขนมหวาน", price: 30, category: "desserts", status: 'available',  description: "หวานอร่อย สดใหม่" }
 ];
 
-// ตะกร้าสินค้า (เฉพาะ customer)
-export let cart = [];
-
 // ข้อมูลผู้ใช้งานปัจจุบัน
 export let currentUser = null;
 
@@ -67,5 +64,4 @@ export function login(username, password) {
 // ฟังก์ชัน logout
 export function logout() {
     currentUser = null;
-    cart = [];
 }

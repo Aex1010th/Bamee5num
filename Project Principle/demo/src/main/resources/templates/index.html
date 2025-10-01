@@ -11,49 +11,11 @@
     <div class="text-center py-20">
         <h1 class="text-4xl font-bold text-orange-600">🍜 ยินดีต้อนรับสู่ Bamee 5 Num 🍜</h1>
         <p class="mt-4 text-gray-700 text-lg">เข้าสู่ระบบหรือสมัครสมาชิก</p>
-        <button id="loginBtn" class="mt-10 bg-orange-500 text-white px-6 py-3 rounded-lg hover:bg-orange-600 transition">
+        <a href="/login" class="inline-block mt-10 bg-orange-500 text-white px-6 py-3 rounded-lg hover:bg-orange-600 transition">
             เข้าสู่ระบบ / สมัครสมาชิก
-        </button>
+        </a>
     </div>
-
-    <div id="authModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-        <div class="bg-white p-6 rounded-lg w-96">
-            <div class="flex justify-between items-center mb-4">
-                <h2 id="authTitle" class="text-xl font-bold">เข้าสู่ระบบ</h2>
-                <button id="closeAuth" class="text-gray-500 text-2xl">&times;</button>
-            </div>
-
-            <div class="flex mb-4">
-                <button id="loginTab" class="flex-1 text-center text-gray-600 py-2 border-b-2 border-orange-500 font-semibold">Login</button>
-                <button id="registerTab" class="flex-1 text-center text-gray-600 py-2 border-b-2 border-transparent">Register</button>
-            </div>
-
-            <form id="authForm" class="space-y-2">
-                <input type="text" id="username" placeholder="Username" class="border p-2 w-full rounded">
-                <input type="password" id="password" placeholder="Password" class="border p-2 w-full rounded">
-
-                <div id="registerFields" class="hidden space-y-2">
-                    <input type="text" id="fullName" placeholder="Full Name" class="border p-2 w-full rounded">
-                </div>
-                <select id="userRole" class="hidden border p-2 w-full rounded">
-                    <option value="customer">ลูกค้า</option>
-                    <option value="employee">พนักงาน</option>
-                    <option value="manager">ผู้จัดการ</option>
-                </select>
-
-                <button type="submit" class="bg-orange-500 text-white px-4 py-2 rounded w-full hover:bg-orange-600 transition">
-                    <span id="authButtonText">เข้าสู่ระบบ</span>
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <div id="notifications" class="fixed top-5 right-5 space-y-2 z-50"></div>
 
     <script type="module" src="/js/db.js"></script>
-    <script type="module">
-        import { setupLanding } from '/js/landing.js';
-        setupLanding();
-    </script>
 </body>
 </html>
