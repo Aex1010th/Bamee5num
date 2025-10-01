@@ -9,9 +9,9 @@ export let users = [
 
 // เมนูอาหาร
 export let menuItems = [
-    { id: 1, name: "บะหมี่หมูแดง", price: 50, category: "noodles", description: "เส้นเหนียวนุ่ม หมูแดงย่าง" },
-    { id: 2, name: "น้ำอัดลม", price: 20, category: "drinks", description: "น้ำอัดลมเย็น ๆ" },
-    { id: 3, name: "ขนมหวาน", price: 30, category: "desserts", description: "หวานอร่อย สดใหม่" }
+    { id: 1, name: "บะหมี่หมูแดง", price: 50, category: "noodles", status: 'available', description: "เส้นเหนียวนุ่ม หมูแดงย่าง" },
+    { id: 2, name: "น้ำอัดลม", price: 20, category: "drinks", status: 'available',  description: "น้ำอัดลมเย็น ๆ" },
+    { id: 3, name: "ขนมหวาน", price: 30, category: "desserts", status: 'available',  description: "หวานอร่อย สดใหม่" }
 ];
 
 // ตะกร้าสินค้า (เฉพาะ customer)
