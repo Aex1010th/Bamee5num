@@ -1,9 +1,10 @@
-
+let currentEditId = null;
 let employeeModal;
 let employeeForm;
 let employeeModalTitle;
 let employeeNameInput;
 let employeePositionInput;
+let menuItems = [];
 
 export async function setupManagerDashboard() {
     const user = JSON.parse(localStorage.getItem("currentUser"));
@@ -17,7 +18,20 @@ export async function setupManagerDashboard() {
     document.getElementById("userNav").classList.remove("hidden");
     document.getElementById("navButtons").classList.add("hidden");
 
-    document.getElementById('addMenuBtn').addEventListener('click', showAddMenuModal);
+    document.getElementById('addMenuBtn').addEventListener('click', () => {
+        currentEditId = null; // โหมดเพิ่ม
+        document.querySelector('#addMenuModal h3').innerText = "เพิ่มเมนูใหม่";
+        document.querySelector('#addMenuForm button[type="submit"]').innerText = "เพิ่มเมนู";
+
+        // reset form
+        document.getElementById('menuName').value = "";
+        document.getElementById('menuPrice').value = "";
+        document.getElementById('menuCategory').value = "";
+        document.getElementById('menuDescription').value = "";
+
+        showAddMenuModal();
+    });
+    
 
     const addEmployeeBtn = document.getElementById('addEmployeeBtn');
     if (addEmployeeBtn) {
@@ -84,7 +98,6 @@ async function loadMenuItems() {
         return;
     }
     menuList.innerHTML = "";
-    let menuItems = [];
     try {
         const resp = await fetch('/api/menuItems');
         if (resp.ok) {
@@ -131,37 +144,90 @@ async function loadMenuItems() {
     });
 
     document.querySelectorAll(".edit-menu").forEach(btn => {
-    btn.addEventListener("click", async () => {
-        const id = parseInt(btn.dataset.id, 10);
-        const item = menuItems.find(m => m.id === id);
+        btn.addEventListener("click", () => {
+            const id = parseInt(btn.dataset.id, 10);
+            const item = menuItems.find(m => m.id === id);
 
-        if (!item) return;
+            if (!item) return;
 
-        // ตัวอย่างง่าย ๆ: ใช้ prompt ให้แก้ชื่อและราคา
-        const newName = prompt("ชื่อเมนูใหม่:", item.name);
-        const newPrice = prompt("ราคามีใหม่:", item.price);
+            currentEditId = id;
 
-        if (newName && newPrice) {
-            const resp = await fetch(`/api/menuItems/${id}`, {
-                method: 'PUT',
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ 
-                    name: newName, 
-                    price: parseInt(newPrice, 10), 
-                    status: item.status 
-                })
-            });
+            document.querySelector('#addMenuModal h3').innerText = "แก้ไขเมนู";
+            document.querySelector('#addMenuForm button[type="submit"]').innerText = "บันทึกการแก้ไข";
 
-            if (resp.ok) {
-                await loadMenuItems();
-                alert("แก้ไขเมนูสำเร็จ!");
-            } else {
-                alert("แก้ไขเมนูไม่สำเร็จ");
-            }
-        }
+            document.getElementById('menuName').value = item.name;
+            document.getElementById('menuPrice').value = item.price;
+            document.getElementById('menuCategory').value = item.category;
+            document.getElementById('menuDescription').value = item.description;
+
+            showAddMenuModal();
+        });
     });
-});
+}
 
+function renderMenuItemsFromLocal() {
+    const menuList = document.getElementById("menuManagementList");
+    if (!menuList) return;
+    menuList.innerHTML = "";
+
+    menuItems.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "flex justify-between bg-gray-100 p-4 rounded-lg";
+        div.innerHTML = `
+            <span>${item.name} - ฿${item.price}</span>
+            <div class="flex space-x-2">
+                <select onchange="updateMenuStatus(${item.id}, this.value)" 
+                        class="text-sm border rounded px-2 py-1">
+                    <option value="available" ${item.status === 'available' ? 'selected' : ''}>
+                        พร้อมขาย
+                    </option>
+                    <option value="unavailable" ${item.status === 'unavailable' ? 'selected' : ''}>
+                        ไม่พร้อมขาย
+                    </option>
+                </select>
+                <button class="bg-yellow-500 text-white px-3 py-1 rounded edit-menu" 
+                    data-id="${item.id}">แก้ไข</button>
+                <button class="bg-red-500 text-white px-3 py-1 rounded delete-menu" 
+                    data-id="${item.id}">ลบ</button>
+            </div>
+        `;
+        menuList.appendChild(div);
+    });
+
+    // wire up the delete handlers (same logic as loadMenuItems)
+    document.querySelectorAll(".delete-menu").forEach(btn => {
+        btn.removeEventListener && btn.removeEventListener("click", () => {}); // safe-noop
+        btn.addEventListener("click", async () => {
+            const id = parseInt(btn.dataset.id, 10);
+            const resp = await fetch(`/api/menuItems/${id}`, { method: 'DELETE' });
+            if (resp.ok || resp.status === 204) {
+                await loadMenuItems(); // for deletes we'll refresh from server
+            } else {
+                alert('ลบเมนูไม่สำเร็จ');
+            }
+        });
+    });
+
+    // wire up the edit handlers (same UI behavior)
+    document.querySelectorAll(".edit-menu").forEach(btn => {
+        btn.removeEventListener && btn.removeEventListener("click", () => {}); // safe-noop
+        btn.addEventListener("click", () => {
+            const id = parseInt(btn.dataset.id, 10);
+            const item = menuItems.find(m => m.id === id);
+            if (!item) return;
+
+            currentEditId = id;
+            document.querySelector('#addMenuModal h3').innerText = "แก้ไขเมนู";
+            document.querySelector('#addMenuForm button[type=\"submit\"]').innerText = "บันทึกการแก้ไข";
+
+            document.getElementById('menuName').value = item.name;
+            document.getElementById('menuPrice').value = item.price;
+            document.getElementById('menuCategory').value = item.category;
+            document.getElementById('menuDescription').value = item.description;
+
+            showAddMenuModal();
+        });
+    });
 }
 
 async function updateMenuStatus(id, newStatus) {
@@ -201,19 +267,53 @@ async function handleAddMenu(event) {
         description: document.getElementById('menuDescription').value
     };
 
-    const resp = await fetch('/api/menuItems', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(menuData)
-    });
-    if (resp.ok) {
-        alert('เพิ่มเมนูใหม่สำเร็จ!');
-        await loadMenuItems();
-        hideAddMenuModal();
-        event.target.reset();
-    } else {
-        alert('เกิดข้อผิดพลาดในการเพิ่มเมนู');
+    if (currentEditId) {
+        // โหมดแก้ไข
+        const item = menuItems.find(m => m.id === currentEditId);
+        if (item) {
+            item.name = menuData.name;
+            item.price = menuData.price;
+            item.category = menuData.category;
+            item.description = menuData.description;
+            renderMenuItemsFromLocal();
+            alert('แก้ไขเมนูสำเร็จ!');
+            hideAddMenuModal();
+            event.target.reset();  
+            currentEditId = null;
+        }
+        /*
+        const resp = await fetch(`/api/menuItems/${currentEditId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(menuData)
+        });
+        if (resp.ok) {
+            alert('แก้ไขเมนูสำเร็จ!');
+            await loadMenuItems();
+            hideAddMenuModal();
+            event.target.reset();
+            currentEditId = null;
+        } else {
+            alert('เกิดข้อผิดพลาดในการแก้ไขเมนู');
+        }
+        */
     }
+    else{
+        // โหมดเพิ่มใหม่
+        const resp = await fetch('/api/menuItems', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(menuData)
+        });
+        if (resp.ok) {
+            alert('เพิ่มเมนูใหม่สำเร็จ!');
+            await loadMenuItems();
+            hideAddMenuModal();
+            event.target.reset();
+        } else {
+            alert('เกิดข้อผิดพลาดในการเพิ่มเมนู');
+        }
+    }                    
 }
 
 function initManagerTabs() {
