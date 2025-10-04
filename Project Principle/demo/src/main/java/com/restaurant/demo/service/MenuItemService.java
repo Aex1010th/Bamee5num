@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import com.restaurant.demo.model.MenuItem;
 import com.restaurant.demo.repository.MenuItemRepo;
@@ -14,17 +15,17 @@ public class MenuItemService {
     @Autowired
     private MenuItemRepo menuItemRepo;
 
-    // ค้นหารายการเมนูที่เปิดใช้งาน
+    // Fetch all active menu items for customer/employee views
     public List<MenuItem> getActiveMenuItems() {
         return menuItemRepo.findByActiveTrue();
     }
 
-    // เพิ่มเมนูใหม่
+    // add new menuItem
     public MenuItem addMenuItem(MenuItem menuItem) {
         return menuItemRepo.save(menuItem);
     }
 
-    // ลบเมนูตาม ID
+    // Remove a menu item by id
     public void deleteMenuItem(Long id) {
         menuItemRepo.deleteById(id);
     }
@@ -40,8 +41,21 @@ public class MenuItemService {
             existing.setCategory(menuItem.getCategory());
             existing.setDescription(menuItem.getDescription());
             existing.setActive(menuItem.isActive());
+            if (StringUtils.hasText(menuItem.getOrderStatus())) {
+                existing.setOrderStatus(menuItem.getOrderStatus().trim());
+            }
             return menuItemRepo.save(existing);
         });
     }
 
+    public Optional<MenuItem> updateOrderStatus(Long id, String status) {
+        if (!StringUtils.hasText(status)) {
+            return Optional.empty();
+        }
+        String trimmed = status.trim();
+        return menuItemRepo.findById(id).map(existing -> {
+            existing.setOrderStatus(trimmed);
+            return menuItemRepo.save(existing);
+        });
+    }
 }

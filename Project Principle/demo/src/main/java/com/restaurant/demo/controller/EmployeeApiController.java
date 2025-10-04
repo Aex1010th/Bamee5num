@@ -27,25 +27,25 @@ public class EmployeeApiController {
         this.menuItemService = menuItemService;
     }
 
-    // Employees จัดการเมนู
+    // Employees fetch active menu items
     @GetMapping("/menu")
     public List<MenuItem> getMenuForEmployee() {
         return menuItemService.getActiveMenuItems();
     }
-
+    // Employees add new menu item
     @PostMapping("/menu")
     public ResponseEntity<MenuItem> createMenuItem(@RequestBody MenuItem menuItem) {
         MenuItem created = menuItemService.addMenuItem(menuItem);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
-
+    // Employees update menu item
     @PutMapping("/menu/{id}")
     public ResponseEntity<MenuItem> updateMenuItem(@PathVariable Long id, @RequestBody MenuItem menuItem) {
         return menuItemService.updateMenuItem(id, menuItem)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
-
+    // Employees delete menu item
     @DeleteMapping("/menu/{id}")
     public ResponseEntity<Void> deleteMenuItem(@PathVariable Long id) {
         if (menuItemService.findById(id).isEmpty()) {
@@ -55,26 +55,48 @@ public class EmployeeApiController {
         return ResponseEntity.noContent().build();
     }
 
-    // Employee ดูแลการอัปเดตสถานะคำสั่งซื้อ
-    @PutMapping("/orders/{id}/status")
-    public ResponseEntity<MenuItem> updateOrderStatus(@PathVariable Long id, @RequestBody OrderStatusUpdateRequest request) {
-        if (request == null || !StringUtils.hasText(request.getStatus())) {
-            return ResponseEntity.badRequest().build();
-        }
-        String newStatus = request.getStatus().trim();
+    // Employees get order status
+    @GetMapping("/orders/{id}/status")
+    public ResponseEntity<OrderStatusResponse> getOrderStatus(@PathVariable Long id) {
         return menuItemService.findById(id)
-                .flatMap(item -> {
-                    item.setOrderStatus(newStatus);
-                    return menuItemService.updateMenuItem(id, item);
-                })
-                .map(ResponseEntity::ok)
+                .map(item -> ResponseEntity.ok(new OrderStatusResponse(item.getOrderStatus())))
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    // Employees update order status
+    @PutMapping("/orders/{id}/status")
+    public ResponseEntity<OrderStatusResponse> updateOrderStatus(@PathVariable Long id, @RequestBody OrderStatusUpdateRequest request) {
+        if (request == null || !StringUtils.hasText(request.getStatus())) {
+            return ResponseEntity.badRequest().build();
+        }
+        return menuItemService.updateOrderStatus(id, request.getStatus())
+                .map(item -> ResponseEntity.ok(new OrderStatusResponse(item.getOrderStatus())))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    
     public static class OrderStatusUpdateRequest {
         private String status;
 
         public OrderStatusUpdateRequest() {}
+
+        public String getStatus() {
+            return status;
+        }
+
+        public void setStatus(String status) {
+            this.status = status;
+        }
+    }
+
+    public static class OrderStatusResponse {
+        private String status;
+
+        public OrderStatusResponse() {}
+
+        public OrderStatusResponse(String status) {
+            this.status = status;
+        }
 
         public String getStatus() {
             return status;
