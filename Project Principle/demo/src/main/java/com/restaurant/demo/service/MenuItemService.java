@@ -1,6 +1,7 @@
 package com.restaurant.demo.service;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,21 @@ public class MenuItemService {
     // ลบเมนูตาม ID
     public void deleteMenuItem(Long id) {
         menuItemRepo.deleteById(id);
+    }
+
+    public Optional<MenuItem> findById(Long id) {
+        return menuItemRepo.findById(id);
+    }
+
+    public Optional<MenuItem> updateMenuItem(Long id, MenuItem menuItem) {
+        return menuItemRepo.findById(id).map(existing -> {
+            existing.setName(menuItem.getName());
+            existing.setPrice(menuItem.getPrice());
+            existing.setCategory(menuItem.getCategory());
+            existing.setDescription(menuItem.getDescription());
+            existing.setActive(menuItem.isActive());
+            return menuItemRepo.save(existing);
+        });
     }
 
 }
