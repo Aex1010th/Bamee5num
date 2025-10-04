@@ -1,5 +1,6 @@
 package com.restaurant.demo.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -14,10 +15,10 @@ public class MenuItem {
     private String name;
     private double price;
     private String description;
-    
-    //รองรับคำสั่งค้นหา: ใน MenuItemRepo มีเมธอด findByActiveTrue()
-    //ถ้า active = false เมนูนั้นจะไม่แสดงในหน้าร้าน
     private boolean active = true;
+
+    @Column(name = "order_status")
+    private String orderStatus = "PENDING";
 
     public MenuItem() {}
 
@@ -32,6 +33,7 @@ public class MenuItem {
         this.category = category;
         this.description = description;
         this.active = true;
+        this.orderStatus = "PENDING";
     }
 
     public Long getId() {
@@ -80,5 +82,13 @@ public class MenuItem {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public String getOrderStatus() {
+        return orderStatus;
+    }
+
+    public void setOrderStatus(String orderStatus) {
+        this.orderStatus = orderStatus;
     }
 }
