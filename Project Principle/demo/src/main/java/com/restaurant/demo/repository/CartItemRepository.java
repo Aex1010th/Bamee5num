@@ -13,6 +13,7 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long> {
     
     // Order management query methods
     List<CartItem> findByCustomerAndStatus(Customer customer, String status);
+    List<CartItem> findByCustomerAndStatusInOrderByUpdatedAtDesc(Customer customer, List<String> statuses);
     List<CartItem> findByStatus(String status);
     List<CartItem> findAllByOrderByCreatedAtDesc();
 

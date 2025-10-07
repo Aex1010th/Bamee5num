@@ -1,5 +1,10 @@
 // customer-orders.js
-// Handles displaying customer pending orders
+// Handles displaying customer orders and status updates
+
+const ORDER_POLL_INTERVAL_MS = 8000;
+let orderPollTimerId = null;
+let lastRenderedOrderSignature = null;
+let pollCleanupRegistered = false;
 
 document.addEventListener("DOMContentLoaded", () => {
     setupCustomerOrdersPage();
@@ -13,11 +18,18 @@ async function setupCustomerOrdersPage() {
     // If customer ID is not present in DOM, server didn't render it (no valid session)
     if (!customerId || isNaN(customerId)) {
         console.warn("No customer ID found in DOM - server session validation failed");
-        window.location.href = "/login";
+        showNotification("ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบอีกครั้ง", "error");
+
+        const loadingIndicator = document.getElementById("loadingIndicator");
+        const emptyOrders = document.getElementById("emptyOrders");
+        if (loadingIndicator) {
+            loadingIndicator.classList.add("hidden");
+        }
+        if (emptyOrders) {
+            emptyOrders.classList.remove("hidden");
+        }
         return;
     }
-
-    console.log("Customer ID from DOM:", customerId);
 
     // Logout button
     const logoutBtn = document.getElementById("logoutBtn");
@@ -26,21 +38,52 @@ async function setupCustomerOrdersPage() {
     }
 
     // Load pending orders
-    await loadPendingOrders(customerId);
+    await loadCustomerOrders(customerId);
+    startOrderPolling(customerId);
 }
 
-// ======== Load Pending Orders ========
-async function loadPendingOrders(customerId) {
+function startOrderPolling(customerId) {
+    if (orderPollTimerId) {
+        clearInterval(orderPollTimerId);
+    }
+
+    orderPollTimerId = setInterval(() => {
+        loadCustomerOrders(customerId, { skipSpinner: true });
+    }, ORDER_POLL_INTERVAL_MS);
+
+    if (!pollCleanupRegistered) {
+        pollCleanupRegistered = true;
+        window.addEventListener("beforeunload", () => {
+            if (orderPollTimerId) {
+                clearInterval(orderPollTimerId);
+            }
+        });
+    }
+}
+
+// ======== Load Customer Orders ========
+async function loadCustomerOrders(customerId, options = {}) {
+    const { skipSpinner = false } = options;
+
     const loadingIndicator = document.getElementById("loadingIndicator");
     const emptyOrders = document.getElementById("emptyOrders");
     const ordersContainer = document.getElementById("ordersContainer");
 
     try {
-        loadingIndicator.classList.remove("hidden");
-        emptyOrders.classList.add("hidden");
-        ordersContainer.classList.add("hidden");
+        if (!skipSpinner && loadingIndicator) {
+            loadingIndicator.classList.remove("hidden");
+        }
+        if (emptyOrders) {
+            emptyOrders.classList.add("hidden");
+        }
+        if (ordersContainer) {
+            ordersContainer.classList.add("hidden");
+        }
 
-        const response = await fetch(`/api/orders/customers/${customerId}/pending-orders`);
+        const response = await fetch(`/api/orders/customers/${customerId}/pending-orders`, {
+            cache: "no-store",
+            credentials: "same-origin"
+        });
         
         if (!response.ok) {
             throw new Error(`Failed to fetch orders: ${response.status} ${response.statusText}`);
@@ -48,32 +91,57 @@ async function loadPendingOrders(customerId) {
 
         const orderData = await response.json();
         
-        loadingIndicator.classList.add("hidden");
+        if (loadingIndicator) {
+            loadingIndicator.classList.add("hidden");
+        }
 
         // Backend returns a single OrderResponseDto object, not an array
         // Convert to array format expected by displayOrders function
         const orders = (orderData && orderData.items && orderData.items.length > 0) ? [orderData] : [];
 
         if (orders.length === 0) {
-            emptyOrders.classList.remove("hidden");
+            if (emptyOrders) {
+                const emptyText = emptyOrders.querySelector("p");
+                if (emptyText) {
+                    emptyText.textContent = "ยังไม่มีคำสั่งซื้อในระบบ";
+                }
+                emptyOrders.classList.remove("hidden");
+            }
+            lastRenderedOrderSignature = null;
             return;
         }
 
         // Display orders
         displayOrders(orders);
-        ordersContainer.classList.remove("hidden");
+        if (ordersContainer) {
+            ordersContainer.classList.remove("hidden");
+        }
 
     } catch (error) {
-        console.error("Error loading pending orders:", error);
-        loadingIndicator.classList.add("hidden");
+        console.error("Error loading customer orders:", error);
+        if (loadingIndicator) {
+            loadingIndicator.classList.add("hidden");
+        }
         showNotification("เกิดข้อผิดพลาดในการโหลดคำสั่งซื้อ", "error");
-        emptyOrders.classList.remove("hidden");
+        if (emptyOrders) {
+            emptyOrders.classList.remove("hidden");
+        }
     }
 }
 
 // ======== Display Orders ========
 function displayOrders(orders) {
     const ordersContainer = document.getElementById("ordersContainer");
+    if (!ordersContainer) {
+        return;
+    }
+
+    const snapshotSignature = JSON.stringify(orders);
+    if (snapshotSignature === lastRenderedOrderSignature) {
+        return;
+    }
+    lastRenderedOrderSignature = snapshotSignature;
+
     ordersContainer.innerHTML = "";
 
     orders.forEach(order => {
@@ -87,14 +155,12 @@ function createOrderCard(order) {
     const card = document.createElement("div");
     card.className = "bg-white rounded-lg shadow-lg p-6";
 
-    // Format date
-    const orderDate = order.createdAt ? new Date(order.createdAt).toLocaleString('th-TH', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    }) : "ไม่ระบุวันที่";
+    const orderDate = formatDate(order.createdAt);
+    const updatedDate = formatDate(order.updatedAt);
+    const orderTimeSeed = (() => {
+        const updated = parseDate(order.updatedAt);
+        return updated ? updated.getTime() : Date.now();
+    })();
 
     // Get status badge
     const statusBadge = getStatusBadge(order.status);
@@ -109,8 +175,8 @@ function createOrderCard(order) {
                     <span class="text-gray-500 ml-2">x${item.quantity}</span>
                 </div>
                 <div class="text-right">
-                    <div class="text-sm text-gray-500">฿${item.itemPrice} × ${item.quantity}</div>
-                    <div class="font-semibold text-orange-600">฿${item.itemPrice * item.quantity}</div>
+                    <div class="text-sm text-gray-500">฿${formatCurrency(item.itemPrice)} × ${item.quantity}</div>
+                    <div class="font-semibold text-orange-600">฿${formatCurrency(item.subtotal ?? item.itemPrice * item.quantity)}</div>
                 </div>
             </div>
         `).join("");
@@ -121,8 +187,9 @@ function createOrderCard(order) {
     card.innerHTML = `
         <div class="flex justify-between items-start mb-4">
             <div>
-                <h3 class="text-xl font-bold text-gray-800">คำสั่งซื้อ #${order.customerId}-${new Date(order.createdAt).getTime()}</h3>
+                <h3 class="text-xl font-bold text-gray-800">คำสั่งซื้อ #${order.customerId}-${orderTimeSeed}</h3>
                 <p class="text-sm text-gray-500 mt-1">${orderDate}</p>
+                <p class="text-xs text-gray-400">อัปเดตล่าสุด: ${updatedDate}</p>
             </div>
             ${statusBadge}
         </div>
@@ -136,11 +203,42 @@ function createOrderCard(order) {
 
         <div class="flex justify-between items-center pt-4 border-t-2 border-gray-200">
             <span class="text-lg font-bold text-gray-800">รวมทั้งหมด:</span>
-            <span class="text-2xl font-bold text-orange-600">฿${order.totalPrice || 0}</span>
+            <span class="text-2xl font-bold text-orange-600">฿${formatCurrency(order.totalPrice)}</span>
         </div>
     `;
 
     return card;
+}
+
+function parseDate(isoDateString) {
+    if (!isoDateString) {
+        return null;
+    }
+    const parsed = new Date(isoDateString);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatDate(isoDateString) {
+    const parsed = parseDate(isoDateString);
+    if (!parsed) {
+        return "ไม่ระบุวันที่";
+    }
+
+    return parsed.toLocaleString('th-TH', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function formatCurrency(value) {
+    const numericValue = Number(value ?? 0);
+    return numericValue.toLocaleString('th-TH', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
 }
 
 // ======== Get Status Badge ========

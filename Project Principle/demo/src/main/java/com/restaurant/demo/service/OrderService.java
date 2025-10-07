@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -21,6 +22,8 @@ public class OrderService {
 
     private final CartItemRepository cartItemRepository;
     private final CustomerRepository customerRepository;
+
+    private static final List<String> ORDER_STATUSES = List.of("Pending", "In Progress", "Cancelled", "Finish");
 
     public OrderService(CartItemRepository cartItemRepository, CustomerRepository customerRepository) {
         this.cartItemRepository = cartItemRepository;
@@ -58,48 +61,15 @@ public class OrderService {
         itemsToOrder.forEach(item -> item.setStatus("Pending"));
         cartItemRepository.saveAll(itemsToOrder);
 
-        // Calculate total price
-        BigDecimal totalPrice = itemsToOrder.stream()
-                .map(CartItem::getTotalPrice)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // Convert to OrderResponseDto
-        List<OrderResponseDto.OrderItemDto> orderItems = itemsToOrder.stream()
-                .map(item -> new OrderResponseDto.OrderItemDto(
-                        item.getId(),
-                        item.getItemName(),
-                        item.getItemPrice(),
-                        item.getQuantity(),
-                        item.getTotalPrice()
-                ))
-                .collect(Collectors.toList());
-
-        LocalDateTime createdAt = itemsToOrder.stream()
-                .map(CartItem::getCreatedAt)
-                .min(LocalDateTime::compareTo)
-                .orElse(LocalDateTime.now());
-
-        LocalDateTime updatedAt = itemsToOrder.stream()
-                .map(CartItem::getUpdatedAt)
-                .max(LocalDateTime::compareTo)
-                .orElse(LocalDateTime.now());
-
-        return new OrderResponseDto(
-                customer.getId(),
-                customer.getName(),
-                orderItems,
-                totalPrice,
-                "Pending",
-                createdAt,
-                updatedAt
-        );
+        return buildOrderResponse(customer, itemsToOrder, "Pending");
     }
 
     /**
-     * Get pending orders for a specific customer
-     * 
+     * Get the most recently updated order snapshot for a specific customer.
+     * Includes status updates that employees may have applied (Pending, In Progress, Finish, Cancelled).
+     *
      * @param customerId The ID of the customer
-     * @return OrderResponseDto containing pending order details
+     * @return OrderResponseDto containing latest order details
      * @throws RuntimeException if customer not found
      */
     public OrderResponseDto getPendingOrdersByCustomerId(Long customerId) {
@@ -107,11 +77,11 @@ public class OrderService {
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new RuntimeException("Customer not found with ID: " + customerId));
 
-        // Get pending cart items
-        List<CartItem> pendingItems = cartItemRepository.findByCustomerAndStatus(customer, "Pending");
+        // Get latest cart items across tracked statuses (Pending, In Progress, Cancelled, Finish)
+        List<CartItem> trackedItems = cartItemRepository
+                .findByCustomerAndStatusInOrderByUpdatedAtDesc(customer, ORDER_STATUSES);
 
-        if (pendingItems.isEmpty()) {
-            // Return empty order response
+        if (trackedItems.isEmpty()) {
             return new OrderResponseDto(
                     customer.getId(),
                     customer.getName(),
@@ -123,41 +93,27 @@ public class OrderService {
             );
         }
 
-        // Calculate total price
-        BigDecimal totalPrice = pendingItems.stream()
-                .map(CartItem::getTotalPrice)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // Convert to OrderItemDto
-        List<OrderResponseDto.OrderItemDto> orderItems = pendingItems.stream()
-                .map(item -> new OrderResponseDto.OrderItemDto(
-                        item.getId(),
-                        item.getItemName(),
-                        item.getItemPrice(),
-                        item.getQuantity(),
-                        item.getTotalPrice()
-                ))
-                .collect(Collectors.toList());
-
-        LocalDateTime createdAt = pendingItems.stream()
-                .map(CartItem::getCreatedAt)
-                .min(LocalDateTime::compareTo)
-                .orElse(LocalDateTime.now());
-
-        LocalDateTime updatedAt = pendingItems.stream()
+        // Determine the latest status from most recently updated item
+        String latestStatus = trackedItems.stream()
                 .map(CartItem::getUpdatedAt)
                 .max(LocalDateTime::compareTo)
-                .orElse(LocalDateTime.now());
+                .flatMap(latestUpdate -> trackedItems.stream()
+                        .filter(item -> latestUpdate.equals(item.getUpdatedAt()))
+                        .map(CartItem::getStatus)
+                        .filter(Objects::nonNull)
+                        .findFirst())
+                .orElseGet(() -> trackedItems.stream()
+                        .map(CartItem::getStatus)
+                        .filter(Objects::nonNull)
+                        .findFirst()
+                        .orElse("Pending"));
 
-        return new OrderResponseDto(
-                customer.getId(),
-                customer.getName(),
-                orderItems,
-                totalPrice,
-                "Pending",
-                createdAt,
-                updatedAt
-        );
+        // Filter items to the ones matching the latest status so we show a single order snapshot
+        List<CartItem> latestStatusItems = trackedItems.stream()
+                .filter(item -> latestStatus.equals(item.getStatus()))
+                .collect(Collectors.toList());
+
+        return buildOrderResponse(customer, latestStatusItems.isEmpty() ? trackedItems : latestStatusItems, latestStatus);
     }
 
     /**
@@ -185,39 +141,7 @@ public class OrderService {
                     Customer customer = entry.getKey();
                     List<CartItem> customerItems = entry.getValue();
 
-                    BigDecimal totalPrice = customerItems.stream()
-                            .map(CartItem::getTotalPrice)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                    List<OrderResponseDto.OrderItemDto> orderItems = customerItems.stream()
-                            .map(item -> new OrderResponseDto.OrderItemDto(
-                                    item.getId(),
-                                    item.getItemName(),
-                                    item.getItemPrice(),
-                                    item.getQuantity(),
-                                    item.getTotalPrice()
-                            ))
-                            .collect(Collectors.toList());
-
-                    LocalDateTime createdAt = customerItems.stream()
-                            .map(CartItem::getCreatedAt)
-                            .min(LocalDateTime::compareTo)
-                            .orElse(LocalDateTime.now());
-
-                    LocalDateTime updatedAt = customerItems.stream()
-                            .map(CartItem::getUpdatedAt)
-                            .max(LocalDateTime::compareTo)
-                            .orElse(LocalDateTime.now());
-
-                    return new OrderResponseDto(
-                            customer.getId(),
-                            customer.getName(),
-                            orderItems,
-                            totalPrice,
-                            status,
-                            createdAt,
-                            updatedAt
-                    );
+                    return buildOrderResponse(customer, customerItems, status);
                 })
                 .collect(Collectors.toList());
     }
@@ -258,41 +182,7 @@ public class OrderService {
         customerItems.forEach(item -> item.setStatus(newStatus));
         cartItemRepository.saveAll(customerItems);
 
-        // Calculate total price
-        BigDecimal totalPrice = customerItems.stream()
-                .map(CartItem::getTotalPrice)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // Convert to OrderResponseDto
-        List<OrderResponseDto.OrderItemDto> orderItems = customerItems.stream()
-                .map(item -> new OrderResponseDto.OrderItemDto(
-                        item.getId(),
-                        item.getItemName(),
-                        item.getItemPrice(),
-                        item.getQuantity(),
-                        item.getTotalPrice()
-                ))
-                .collect(Collectors.toList());
-
-        LocalDateTime createdAt = customerItems.stream()
-                .map(CartItem::getCreatedAt)
-                .min(LocalDateTime::compareTo)
-                .orElse(LocalDateTime.now());
-
-        LocalDateTime updatedAt = customerItems.stream()
-                .map(CartItem::getUpdatedAt)
-                .max(LocalDateTime::compareTo)
-                .orElse(LocalDateTime.now());
-
-        return new OrderResponseDto(
-                customer.getId(),
-                customer.getName(),
-                orderItems,
-                totalPrice,
-                newStatus,
-                createdAt,
-                updatedAt
-        );
+        return buildOrderResponse(customer, customerItems, newStatus);
     }
 
     /**
@@ -325,9 +215,7 @@ public class OrderService {
      * @return true if valid, false otherwise
      */
     private boolean isValidStatus(String status) {
-        return status != null && 
-               (status.equals("Pending") || status.equals("In Progress") || 
-                status.equals("Cancelled") || status.equals("Finish"));
+        return status != null && ORDER_STATUSES.contains(status);
     }
 
     /**
@@ -362,5 +250,47 @@ public class OrderService {
             default:
                 return false;
         }
+    }
+
+    private OrderResponseDto buildOrderResponse(Customer customer, List<CartItem> items, String statusOverride) {
+        List<OrderResponseDto.OrderItemDto> orderItems = items.stream()
+                .map(item -> new OrderResponseDto.OrderItemDto(
+                        item.getId(),
+                        item.getItemName(),
+                        item.getItemPrice(),
+                        item.getQuantity(),
+                        item.getTotalPrice()
+                ))
+                .collect(Collectors.toList());
+
+        BigDecimal totalPrice = items.stream()
+                .map(CartItem::getTotalPrice)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        LocalDateTime createdAt = items.stream()
+                .map(CartItem::getCreatedAt)
+                .min(LocalDateTime::compareTo)
+                .orElse(LocalDateTime.now());
+
+        LocalDateTime updatedAt = items.stream()
+                .map(CartItem::getUpdatedAt)
+                .max(LocalDateTime::compareTo)
+                .orElse(LocalDateTime.now());
+
+        String resolvedStatus = statusOverride != null ? statusOverride : items.stream()
+                .map(CartItem::getStatus)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse("Pending");
+
+        return new OrderResponseDto(
+                customer.getId(),
+                customer.getName(),
+                orderItems,
+                totalPrice,
+                resolvedStatus,
+                createdAt,
+                updatedAt
+        );
     }
 }
